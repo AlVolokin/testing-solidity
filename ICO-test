@@ -27,6 +27,31 @@ library SafeMath {
     return c;
   }
 }
+
+contract ReentrancyGuard {
+
+  /**
+   * @dev We use a single lock for the whole contract.
+   */
+  bool private reentrancy_lock = false;
+
+  /**
+   * @dev Prevents a contract from calling itself, directly or indirectly.
+   * @notice If you mark a function `nonReentrant`, you should also
+   * mark it `external`. Calling one nonReentrant function from
+   * another is not supported. Instead, you can implement a
+   * `private` function doing the actual work, and a `external`
+   * wrapper marked as `nonReentrant`.
+   */
+  modifier nonReentrant() {
+    require(!reentrancy_lock);
+    reentrancy_lock = true;
+    _;
+    reentrancy_lock = false;
+  }
+
+}
+
 //Interface for the token
 contract ERC20Basic {
   function balanceOf(address who) public view returns (uint256);
@@ -65,7 +90,7 @@ contract BasicToken is ERC20Basic {
 
 }
 
-contract Crowdsale {
+contract Crowdsale is ReentrancyGuard{
   using SafeMath for uint256;
 
   // The token being sold
@@ -111,11 +136,11 @@ contract Crowdsale {
   }
   
   // The fallback function calls the buyTokens one, which ensures that whoever transfers funds to the contract gets tokens
-  function () external payable {
+  function () external payable nonReentrant{
     buyTokensCrowdsale(msg.sender);
   }
 
-  function buyTokensCrowdsale(address _beneficiary) public payable {
+  function buyTokensCrowdsale(address _beneficiary) public payable nonReentrant{
     require(msg.value / 1 ether > 0); //At least 1 ether
     require((msg.value / 1 ether) * 1 ether == msg.value); //Accept only round ETH
     require(now < start + 60 minutes); // Checks if the ICO is still active
@@ -140,7 +165,7 @@ contract Crowdsale {
 
   }
   
-  function sellTokens(address _beneficiary, uint256 tokens) public FreeExchange {
+  function sellTokens(address _beneficiary, uint256 tokens) public FreeExchange nonReentrant {
     
     _processPurchase(_beneficiary, tokens);
     
